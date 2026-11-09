@@ -51,3 +51,7 @@ setup:
 # Run eval cases for one skill (calls agents)
 eval skill *args:
     claude plugin eval . --tag {{ skill }} --no-publish --max-cost-usd 2 {{ args }}
+
+# Link skills and instructions into each agent tool (add --dry-run to preview)
+install *args:
+    scripts/install.sh install {{ args }}
