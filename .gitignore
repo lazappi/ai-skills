@@ -1,0 +1,11 @@
+# Build and eval output
+dist/
+evals/results/
+
+# Python
+.venv/
+__pycache__/
+
+# Local agent state
+.remember/
+.superpowers/
