@@ -1,0 +1,10 @@
+{
+  "name": "lazappi",
+  "description": "Personal, reusable agent skills and global instructions",
+  "author": {
+    "name": "Luke Zappia"
+  },
+  "license": "MIT",
+  "repository": "https://github.com/lazappi/ai-skills",
+  "skills": ["./claude/skills/"]
+}

@@ -1,0 +1,14 @@
+{
+  "name": "lazappi",
+  "description": "Luke Zappia's personal agent skills",
+  "owner": {
+    "name": "Luke Zappia"
+  },
+  "plugins": [
+    {
+      "name": "lazappi",
+      "source": "./",
+      "description": "Personal, reusable agent skills and global instructions"
+    }
+  ]
+}
