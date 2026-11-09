@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# gitmoji as a commit hook
+# Skip when there is no controlling terminal (e.g. agents and other headless commits)
+if ! { : </dev/tty; } 2>/dev/null; then
+  exit 0
+fi
+if npx -v >&/dev/null
+then
+  exec < /dev/tty
+  npx -c "gitmoji --hook \"$1\" \"$2\""
+else
+  exec < /dev/tty
+  gitmoji --hook "$1" "$2"
+fi
