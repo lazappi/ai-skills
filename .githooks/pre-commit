@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# Fast checks only: never call an agent here
+exec just validate
