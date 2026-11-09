@@ -1,0 +1,7 @@
+# Use gitleaks' default rules, but ignore test samples
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Test samples are fake by design"
+paths = ['''^tests/''']
