@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Stand-in for the claude CLI in tests: logs every call and prints canned JSON
+echo "$*" >> "${CLAUDE_STUB_LOG:-/dev/null}"
+case "$*" in
+  "plugin list --json") cat "${CLAUDE_STUB_LIST:-/dev/null}" 2>/dev/null || echo "[]" ;;
+  "plugin marketplace list --json") cat "${CLAUDE_STUB_MARKETS:-/dev/null}" 2>/dev/null || echo "[]" ;;
+esac
+exit 0

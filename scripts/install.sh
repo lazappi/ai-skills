@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Link this repo's skills and global instructions into each agent tool.
 #
-# Usage: scripts/install.sh install [--dry-run]
+# Usage: scripts/install.sh install [--dry-run] [--remote]
+#
+# --remote adds the lazappi marketplace from GitHub instead of this checkout.
 #
 # Environment:
 #   AI_SKILLS_HOME        target home folder (default: $HOME)
@@ -15,12 +17,15 @@ REPO="${AI_SKILLS_REPO:-$(cd "$(dirname "$0")/.." && pwd)}"
 TARGET_HOME="${AI_SKILLS_HOME:-$HOME}"
 GLOBAL="$REPO/instructions/global.md"
 
+REMOTE_SOURCE="lazappi/ai-skills"
+
 DRY_RUN=0
+REMOTE=0
 CHANGES=0
 PROBLEMS=0
 
 usage() {
-  echo "usage: $0 install [--dry-run]" >&2
+  echo "usage: $0 install [--dry-run] [--remote]" >&2
   exit 2
 }
 
@@ -106,6 +111,67 @@ git_hooks() {
   fi
 }
 
+# True when Claude Code steps should run
+claude_enabled() {
+  if [ "${AI_SKILLS_SKIP_CLAUDE:-0}" = "1" ]; then
+    return 1
+  fi
+  if ! command -v claude >/dev/null 2>&1; then
+    echo "warning: claude not found, skipping Claude Code steps" >&2
+    return 1
+  fi
+  if ! command -v jq >/dev/null 2>&1; then
+    problem "jq not found, needed for the Claude Code steps"
+    return 1
+  fi
+}
+
+# Newline-separated lists of what is already set up (bash 3.2 has no sets)
+MARKETS=""
+PLUGINS=""
+
+has() {
+  printf '%s\n' "$1" | grep -qxF -- "$2"
+}
+
+add_market() {
+  local name="$1" source="$2"
+  has "$MARKETS" "$name" && return 0
+  echo "add marketplace: $name ($source)"
+  act claude plugin marketplace add "$source"
+  MARKETS="$MARKETS
+$name"
+}
+
+add_plugin() {
+  local id="$1"
+  has "$PLUGINS" "$id" && return 0
+  echo "install plugin: $id"
+  act claude plugin install "$id"
+  PLUGINS="$PLUGINS
+$id"
+}
+
+claude_steps() {
+  claude_enabled || return 0
+  MARKETS="$(claude plugin marketplace list --json | jq -r '.[].name')"
+  PLUGINS="$(claude plugin list --json | jq -r '.[].id')"
+
+  if [ "$REMOTE" -eq 1 ]; then
+    add_market lazappi "$REMOTE_SOURCE"
+  else
+    add_market lazappi "$REPO"
+  fi
+  add_plugin lazappi@lazappi
+
+  local id source
+  while read -r id source; do
+    case "$id" in "" | "#"*) continue ;; esac
+    add_market "${id#*@}" "$source"
+    add_plugin "$id"
+  done < "$REPO/plugins.txt"
+}
+
 do_install() {
   git_hooks
   link_skills
@@ -113,6 +179,7 @@ do_install() {
   link "$GLOBAL" "$TARGET_HOME/.codex/AGENTS.md"
   link "$GLOBAL" "$TARGET_HOME/.config/opencode/AGENTS.md"
   gemini_import
+  claude_steps
 }
 
 [ $# -ge 1 ] || usage
@@ -121,6 +188,7 @@ shift
 for arg in "$@"; do
   case "$arg" in
     --dry-run) DRY_RUN=1 ;;
+    --remote) REMOTE=1 ;;
     *) usage ;;
   esac
 done

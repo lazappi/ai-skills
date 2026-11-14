@@ -6,8 +6,10 @@ set -uo pipefail
 SRC="$(cd "$(dirname "$0")/.." && pwd)"
 FAILS=0
 TMP_ROOT=""
+ORIG_PATH="$PATH"
 
 setup() {
+  export PATH="$ORIG_PATH"
   TMP_ROOT="$(mktemp -d)"
   export AI_SKILLS_REPO="$TMP_ROOT/repo copy"
   export AI_SKILLS_HOME="$TMP_ROOT/home dir"
@@ -93,6 +95,62 @@ test_dry_run() {
   if [ -e "$AI_SKILLS_HOME/.agents" ] || [ -e "$AI_SKILLS_HOME/.gemini" ] || [ -e "$AI_SKILLS_HOME/.codex" ]; then
     fail "dry run changed the home folder"
   fi
+}
+
+use_stub() {
+  unset AI_SKILLS_SKIP_CLAUDE
+  export PATH="$AI_SKILLS_REPO/tests/bin:$PATH"
+  export CLAUDE_STUB_LOG="$TMP_ROOT/claude.log"
+  export CLAUDE_STUB_LIST="$TMP_ROOT/plugins.json"
+  export CLAUDE_STUB_MARKETS="$TMP_ROOT/markets.json"
+  echo "[]" > "$CLAUDE_STUB_LIST"
+  echo "[]" > "$CLAUDE_STUB_MARKETS"
+  : > "$CLAUDE_STUB_LOG"
+}
+
+third_party() {
+  grep -v '^#' "$AI_SKILLS_REPO/plugins.txt" | grep -c .
+}
+
+test_claude_local() {
+  use_stub
+  install_sh install >/dev/null || fail "install exited non-zero"
+  grep -qxF "plugin marketplace add $AI_SKILLS_REPO" "$CLAUDE_STUB_LOG" || fail "local marketplace not added"
+  grep -qxF "plugin install lazappi@lazappi" "$CLAUDE_STUB_LOG" || fail "lazappi not installed"
+  local installs
+  installs="$(grep -c '^plugin install ' "$CLAUDE_STUB_LOG")"
+  [ "$installs" -eq $(($(third_party) + 1)) ] || fail "expected $(($(third_party) + 1)) installs, got $installs"
+  grep -qxF "plugin marketplace add anthropics/claude-plugins-official" "$CLAUDE_STUB_LOG" || fail "third-party marketplace not added"
+  [ "$(grep -c '^plugin marketplace add anthropics/' "$CLAUDE_STUB_LOG")" -eq 1 ] || fail "third-party marketplace added more than once"
+}
+
+test_claude_remote() {
+  use_stub
+  install_sh install --remote >/dev/null || fail "install exited non-zero"
+  grep -qxF "plugin marketplace add lazappi/ai-skills" "$CLAUDE_STUB_LOG" || fail "remote marketplace not added"
+  if grep -qxF "plugin marketplace add $AI_SKILLS_REPO" "$CLAUDE_STUB_LOG"; then
+    fail "local path added with --remote"
+  fi
+}
+
+test_claude_skips_installed() {
+  use_stub
+  { echo '[{"id":"lazappi@lazappi"}'
+    grep -v '^#' "$AI_SKILLS_REPO/plugins.txt" | awk 'NF {printf ",{\"id\":\"%s\"}", $1}'
+    echo ']'; } > "$CLAUDE_STUB_LIST"
+  echo '[{"name":"lazappi"},{"name":"claude-plugins-official"}]' > "$CLAUDE_STUB_MARKETS"
+  install_sh install >/dev/null || fail "install exited non-zero"
+  if grep -qE '^plugin (install|marketplace add) ' "$CLAUDE_STUB_LOG"; then
+    fail "installed or added something already present: $(grep -E '^plugin (install|marketplace add) ' "$CLAUDE_STUB_LOG" | head -3)"
+  fi
+}
+
+test_no_claude() {
+  unset AI_SKILLS_SKIP_CLAUDE
+  local out
+  out="$(PATH="/usr/bin:/bin:/usr/sbin:/sbin" install_sh install 2>&1)" || fail "install exited non-zero without claude"
+  echo "$out" | grep -qi "claude not found" || fail "no warning about missing claude: $out"
+  assert_link "$AI_SKILLS_HOME/.agents/skills/zz-test-skill" "$AI_SKILLS_REPO/skills/zz-test-skill"
 }
 
 TESTS="$(declare -F | awk '{print $3}' | grep '^test_')"
