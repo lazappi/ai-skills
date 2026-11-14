@@ -55,3 +55,11 @@ eval skill *args:
 # Link skills and instructions into each agent tool (add --dry-run to preview)
 install *args:
     scripts/install.sh install {{ args }}
+
+# Pull this repo, then install again (add --dry-run to preview)
+update *args:
+    scripts/install.sh update {{ args }}
+
+# Remove only what install created (add --dry-run to preview)
+uninstall *args:
+    scripts/install.sh uninstall {{ args }}

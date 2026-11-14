@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 # Link this repo's skills and global instructions into each agent tool.
 #
-# Usage: scripts/install.sh install [--dry-run] [--remote]
+# Usage: scripts/install.sh install|update|uninstall [--dry-run] [--remote]
+#
+# install    link skills and instructions, install the Claude Code plugins
+# update     pull this repo (fast-forward only), then install again
+# uninstall  remove only what install created (third-party plugins stay)
 #
 # --remote adds the lazappi marketplace from GitHub instead of this checkout.
 #
@@ -16,6 +20,8 @@ set -euo pipefail
 REPO="${AI_SKILLS_REPO:-$(cd "$(dirname "$0")/.." && pwd)}"
 TARGET_HOME="${AI_SKILLS_HOME:-$HOME}"
 GLOBAL="$REPO/instructions/global.md"
+# Gemini import line: spaces escaped, never quoted
+GEMINI_LINE="@${GLOBAL// /\\ }"
 
 REMOTE_SOURCE="lazappi/ai-skills"
 
@@ -25,7 +31,7 @@ CHANGES=0
 PROBLEMS=0
 
 usage() {
-  echo "usage: $0 install [--dry-run] [--remote]" >&2
+  echo "usage: $0 install|update|uninstall [--dry-run] [--remote]" >&2
   exit 2
 }
 
@@ -62,7 +68,7 @@ link() {
 # Gemini appends memories to GEMINI.md, so it gets an import line, not a symlink
 gemini_import() {
   local path="$TARGET_HOME/.gemini/GEMINI.md"
-  local line="@${GLOBAL// /\\ }"
+  local line="$GEMINI_LINE"
   if [ -f "$path" ] && [ ! -L "$path" ] && grep -qxF -- "$line" "$path"; then
     return
   fi
@@ -111,19 +117,22 @@ git_hooks() {
   fi
 }
 
-# True when Claude Code steps should run
+# True when Claude Code steps should run (checked once, warns once)
+CLAUDE_OK=""
 claude_enabled() {
-  if [ "${AI_SKILLS_SKIP_CLAUDE:-0}" = "1" ]; then
-    return 1
+  if [ -z "$CLAUDE_OK" ]; then
+    CLAUDE_OK=yes
+    if [ "${AI_SKILLS_SKIP_CLAUDE:-0}" = "1" ]; then
+      CLAUDE_OK=no
+    elif ! command -v claude >/dev/null 2>&1; then
+      echo "warning: claude not found, skipping Claude Code steps" >&2
+      CLAUDE_OK=no
+    elif ! command -v jq >/dev/null 2>&1; then
+      problem "jq not found, needed for the Claude Code steps"
+      CLAUDE_OK=no
+    fi
   fi
-  if ! command -v claude >/dev/null 2>&1; then
-    echo "warning: claude not found, skipping Claude Code steps" >&2
-    return 1
-  fi
-  if ! command -v jq >/dev/null 2>&1; then
-    problem "jq not found, needed for the Claude Code steps"
-    return 1
-  fi
+  [ "$CLAUDE_OK" = yes ]
 }
 
 # Newline-separated lists of what is already set up (bash 3.2 has no sets)
@@ -182,6 +191,68 @@ do_install() {
   claude_steps
 }
 
+do_update() {
+  if git -C "$REPO" rev-parse --abbrev-ref '@{upstream}' >/dev/null 2>&1; then
+    echo "pull: $REPO"
+    act git -C "$REPO" pull --ff-only
+  else
+    echo "warning: no upstream branch for $REPO, skipping pull" >&2
+  fi
+  do_install
+  if claude_enabled; then
+    echo "update marketplace: lazappi"
+    act claude plugin marketplace update lazappi
+  fi
+}
+
+# Remove a symlink only if it points at the given target
+unlink_own() {
+  local target="$1" path="$2"
+  if [ -L "$path" ] && [ "$(readlink "$path")" = "$target" ]; then
+    echo "remove link: $path"
+    act rm "$path"
+  fi
+}
+
+remove_gemini_import() {
+  local path="$TARGET_HOME/.gemini/GEMINI.md"
+  local line="$GEMINI_LINE"
+  [ -f "$path" ] && [ ! -L "$path" ] && grep -qxF -- "$line" "$path" || return 0
+  echo "remove import line: $path"
+  CHANGES=$((CHANGES + 1))
+  [ "$DRY_RUN" -eq 1 ] && return 0
+  local rest
+  rest="$(grep -vxF -- "$line" "$path" || true)"
+  if [ -z "$rest" ]; then
+    rm "$path"
+  else
+    printf '%s\n' "$rest" > "$path"
+  fi
+}
+
+do_uninstall() {
+  local path
+  for path in "$TARGET_HOME"/.agents/skills/*; do
+    [ -L "$path" ] || continue
+    case "$(readlink "$path")" in
+      "$REPO/skills/"*) echo "remove link: $path"; act rm "$path" ;;
+    esac
+  done
+  unlink_own "$GLOBAL" "$TARGET_HOME/.codex/AGENTS.md"
+  unlink_own "$GLOBAL" "$TARGET_HOME/.config/opencode/AGENTS.md"
+  remove_gemini_import
+
+  claude_enabled || return 0
+  if claude plugin list --json | jq -r '.[].id' | grep -qxF lazappi@lazappi; then
+    echo "uninstall plugin: lazappi@lazappi"
+    act claude plugin uninstall lazappi@lazappi
+  fi
+  if claude plugin marketplace list --json | jq -r '.[].name' | grep -qxF lazappi; then
+    echo "remove marketplace: lazappi"
+    act claude plugin marketplace remove lazappi
+  fi
+}
+
 [ $# -ge 1 ] || usage
 COMMAND="$1"
 shift
@@ -195,6 +266,8 @@ done
 
 case "$COMMAND" in
   install) do_install ;;
+  update) do_update ;;
+  uninstall) do_uninstall ;;
   *) usage ;;
 esac
 

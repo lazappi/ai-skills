@@ -153,6 +153,69 @@ test_no_claude() {
   assert_link "$AI_SKILLS_HOME/.agents/skills/zz-test-skill" "$AI_SKILLS_REPO/skills/zz-test-skill"
 }
 
+test_uninstall_only_own_links() {
+  use_stub
+  install_sh install >/dev/null
+  echo '[{"id":"lazappi@lazappi"}]' > "$CLAUDE_STUB_LIST"
+  echo '[{"name":"lazappi"}]' > "$CLAUDE_STUB_MARKETS"
+  : > "$CLAUDE_STUB_LOG"
+  ln -s "$TMP_ROOT" "$AI_SKILLS_HOME/.agents/skills/foreign"
+  echo "my own gemini note" >> "$AI_SKILLS_HOME/.gemini/GEMINI.md"
+
+  install_sh uninstall >/dev/null || fail "uninstall exited non-zero"
+
+  [ -L "$AI_SKILLS_HOME/.agents/skills/foreign" ] || fail "foreign link was removed"
+  for path in .agents/skills/zz-test-skill .codex/AGENTS.md .config/opencode/AGENTS.md; do
+    if [ -e "$AI_SKILLS_HOME/$path" ] || [ -L "$AI_SKILLS_HOME/$path" ]; then
+      fail "$path still exists after uninstall"
+    fi
+  done
+  if grep -qxF "$(gemini_line)" "$AI_SKILLS_HOME/.gemini/GEMINI.md"; then
+    fail "GEMINI.md still has the import line"
+  fi
+  grep -qxF "my own gemini note" "$AI_SKILLS_HOME/.gemini/GEMINI.md" || fail "GEMINI.md lost the user's own lines"
+  grep -qxF "plugin uninstall lazappi@lazappi" "$CLAUDE_STUB_LOG" || fail "plugin not uninstalled"
+  grep -qxF "plugin marketplace remove lazappi" "$CLAUDE_STUB_LOG" || fail "marketplace not removed"
+}
+
+test_uninstall_removes_empty_gemini() {
+  install_sh install >/dev/null
+  install_sh uninstall >/dev/null || fail "uninstall exited non-zero"
+  if [ -e "$AI_SKILLS_HOME/.gemini/GEMINI.md" ]; then
+    fail "GEMINI.md left behind with only the import line removed"
+  fi
+}
+
+test_update_pulls_and_links() {
+  local remote="$TMP_ROOT/remote.git" work="$TMP_ROOT/work"
+  local email="test""@""test.invalid"
+  local commit="git -c user.name=test -c user.email=$email -c commit.gpgsign=false"
+  git -C "$AI_SKILLS_REPO" add -A >/dev/null
+  $commit -C "$AI_SKILLS_REPO" commit -q --no-verify -m "test state" >/dev/null
+  git clone -q --bare "$AI_SKILLS_REPO" "$remote"
+  rm -rf "$AI_SKILLS_REPO"
+  git clone -q "$remote" "$AI_SKILLS_REPO"
+  install_sh install >/dev/null
+
+  git clone -q "$remote" "$work"
+  mkdir -p "$work/skills/zz-new-skill"
+  printf -- '---\nname: zz-new-skill\ndescription: New skill.\n---\n' > "$work/skills/zz-new-skill/SKILL.md"
+  git -C "$work" add -A
+  $commit -C "$work" commit -q --no-verify -m "add skill"
+  git -C "$work" push -q
+
+  install_sh update >/dev/null || fail "update exited non-zero"
+  [ -f "$AI_SKILLS_REPO/skills/zz-new-skill/SKILL.md" ] || fail "update did not pull the new commit"
+  assert_link "$AI_SKILLS_HOME/.agents/skills/zz-new-skill" "$AI_SKILLS_REPO/skills/zz-new-skill"
+}
+
+test_update_without_upstream() {
+  local out
+  out="$(install_sh update 2>&1)" || fail "update failed without an upstream: $out"
+  echo "$out" | grep -qi "no upstream" || fail "no warning about the missing upstream: $out"
+  assert_link "$AI_SKILLS_HOME/.agents/skills/zz-test-skill" "$AI_SKILLS_REPO/skills/zz-test-skill"
+}
+
 TESTS="$(declare -F | awk '{print $3}' | grep '^test_')"
 for t in $TESTS; do
   echo "$t"
