@@ -18,6 +18,7 @@ Instructions for other tools are added once the install script exists.
 
 | Skill | Use it for | Adds over |
 | - | - | - |
+| `session-retrospective` | Turning a session's lessons into approved edits to instructions, skills, scripts and memory | `claude-md-management:revise-claude-md`, which only edits CLAUDE.md |
 
 ## Repository structure
 
