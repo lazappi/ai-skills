@@ -63,3 +63,7 @@ update *args:
 # Remove only what install created (add --dry-run to preview)
 uninstall *args:
     scripts/install.sh uninstall {{ args }}
+
+# Build claude.ai upload zips in dist/ (all skills, or the ones named)
+package *skills: validate
+    scripts/package.sh {{ skills }}
