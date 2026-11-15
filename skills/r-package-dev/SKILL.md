@@ -11,8 +11,10 @@ Work the way a careful R package maintainer would: the project's own config firs
 
 Before changing anything, read:
 
-- `DESCRIPTION`: version, `Imports` versus `Suggests`, `Config/testthat/edition`, `Config/roxygen2/version`, `biocViews` (present means a Bioconductor package)
+- `DESCRIPTION`: version, `Imports` versus `Suggests`, `Config/testthat/edition`, `Config/roxygen2/version` (or `RoxygenNote` before roxygen2 8), `biocViews`
 - Project instructions and contributing guides (`AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md`)
+- Whether it is a Bioconductor package: `biocViews` usually indicates a Bioconductor package.
+  Also look for bioconductor.org in `URL`, the README or the git remote, and ask the user if it is still unclear.
 - Tool configs: `air.toml` or `.air.toml`, `.lintr`, `.Rbuildignore`, `_pkgdown.yml`, `.github/workflows/`
 - Any check script the project provides (for example `scripts/check.sh` or a `Makefile`), which replaces the commands below
 
@@ -36,7 +38,7 @@ Run, in order, fixing problems before moving on:
 5. `devtools::check()` for a change that touches exports, dependencies or docs
 6. `BiocCheck::BiocCheck()` for a Bioconductor package
 
-Treat every NOTE from `R CMD check` as a problem to fix, not something to accept.
+Treat every NOTE from `R CMD check` as a problem to fix, except the environment NOTEs listed in the release reference.
 Done when every step passes, or each remaining failure is reported to the user with its cause.
 
 ## 4. Version and NEWS

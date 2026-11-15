@@ -30,7 +30,7 @@ Follow the existing conventions of the package otherwise.
 - Document every exported function with roxygen2: `@title` (first line), `@description`, `@param` for every argument, `@returns`, `@examples` that run, and `@export`
 - Use `@inheritParams` instead of repeating parameter docs, and `@family` or `@seealso` to link related functions
 - Internal helpers get a short roxygen block with `@noRd`
-- Regenerate with `devtools::document()` using the roxygen2 version in `Config/roxygen2/version`, so the generated files don't churn
+- Regenerate with `devtools::document()` using the roxygen2 version in `Config/roxygen2/version` (or `RoxygenNote` before roxygen2 8), so the generated files don't churn
 - Add or update vignette examples when user-facing behaviour changes, and add new pages to `_pkgdown.yml` if the package has a site
 
 ## Tests

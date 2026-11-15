@@ -32,7 +32,9 @@ Follow the scheme already in `DESCRIPTION` when it is clear which one the packag
 ## Bioconductor
 
 - `DESCRIPTION` needs `biocViews` terms, and `BugReports` and `URL` fields
-- Every exported function needs a runnable example and the package needs a vignette with real code
+- Give exported functions runnable examples.
+  BiocCheck flags a package where under 80% of man pages have them.
+  Also include a vignette with real code.
 - Prefer Bioconductor classes (`SummarizedExperiment`, `SingleCellExperiment`, `S4Vectors::DataFrame`) for data the ecosystem shares
 - BiocCheck flags lines over 80 characters, tabs, indents that are not a multiple of 4 spaces and functions over 50 lines.
   Fix what is cheap, and report the rest to the user rather than reformatting the whole package against the project's own style.
