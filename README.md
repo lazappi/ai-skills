@@ -6,13 +6,56 @@ In Claude Code the repo installs as the `lazappi` plugin.
 
 ## Install
 
-In Claude Code:
+### Claude Code
 
-```
-/plugin install lazappi --marketplace lazappi/ai-skills
+```bash
+claude plugin marketplace add lazappi/ai-skills
+claude plugin install lazappi@lazappi
 ```
 
-Instructions for other tools are added once the install script exists.
+### Every tool from a clone
+
+Clone the repo, then link the skills and global instructions into each tool and install the Claude Code plugins listed in `plugins.txt`:
+
+```bash
+git clone https://github.com/lazappi/ai-skills.git
+cd ai-skills
+scripts/install.sh install --remote
+```
+
+This needs [jq](https://jqlang.org) for the Claude Code steps, and skips them if `claude` isn't installed.
+`--remote` adds the marketplace from GitHub.
+On a machine where you edit the skills, run `just install` instead, so Claude Code reads the local checkout.
+Add `--dry-run` to see what would change.
+
+| Tool | Skills | Global instructions |
+| - | - | - |
+| Claude Code | `lazappi` plugin | `~/.claude/CLAUDE.md`, managed separately |
+| Codex | `~/.agents/skills/` | `~/.codex/AGENTS.md` (link) |
+| Gemini CLI | `~/.agents/skills/` | `~/.gemini/GEMINI.md` (import line) |
+| OpenCode | `~/.agents/skills/` | `~/.config/opencode/AGENTS.md` (link) |
+
+Existing files are never overwritten: the script reports them and exits non-zero.
+`just update` pulls the repo and installs again, and `just uninstall` removes only what the install created.
+
+### Other tools
+
+Copy a folder from `skills/` into the tool's skills folder, or use [`npx skills`](https://github.com/vercel-labs/skills):
+
+```bash
+npx skills add lazappi/ai-skills -g
+```
+
+### claude.ai
+
+`just package` writes one zip per skill to `dist/`.
+Upload them in claude.ai's skill settings.
+Skills uploaded there also sync to Claude Code sessions signed in to the same account.
+
+### Caveats
+
+- In Cowork sessions, `@` imports in `~/.claude/CLAUDE.md` that point outside the working folder are skipped, so the global instructions don't load there
+- Claude-only wrapper skills in `claude/skills/` are installed only by the plugin
 
 ## Skills
 
@@ -28,6 +71,9 @@ Instructions for other tools are added once the install script exists.
 - `skills/`: portable skills, standard frontmatter only
 - `claude/`: Claude Code-only pieces (wrapper skills, hooks)
 - `instructions/global.md`: global rules shared by every tool
+- `plugins.txt`: third-party Claude Code plugins that the install script adds
+- `evals/`: `claude plugin eval` cases that check each skill triggers, run with `just eval <skill>`
+- `scripts/` and `tests/`: install, validation and packaging tooling, run with `just validate` and `just test`
 - `AGENTS.md`: how to maintain this repo and write skills
 
 ## Licence
