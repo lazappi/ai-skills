@@ -28,3 +28,4 @@
 - The user prefers Markdown (and similar e.g. Quarto) files to have text formatted as one sentence per line.
   Use this style unless it conflicts with the existing format of the document.
 - Avoid using the Oxford comma unless it is required to make a complicated list clearer or to match the document style.
+- For docs, Markdown, commit, PR and issue text, follow the `writing-style` skill.

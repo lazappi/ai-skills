@@ -66,6 +66,7 @@ Skills uploaded there also sync to Claude Code sessions signed in to the same ac
 | `r-package-dev` | Developing R packages with formatting, lint, roxygen2, testthat, NEWS.md, version and Bioconductor conventions | No existing skill covers R package conventions |
 | `repo-tidy` | Auditing a whole repo into a prioritised checklist of fixes before changing anything | `simplify`, which only edits recently changed code |
 | `session-retrospective` | Turning a session's lessons into approved edits to instructions, skills, scripts and memory | `claude-md-management:revise-claude-md`, which only edits CLAUDE.md |
+| `writing-style` | Writing and proofreading prose, Markdown, commits, PRs and issues in a plain style with Australian spelling by default | No existing skill covers a personal writing style |
 
 ## Repository structure
 
