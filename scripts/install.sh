@@ -4,10 +4,12 @@
 # Usage: scripts/install.sh install|update|uninstall [--dry-run] [--remote]
 #
 # install    link skills and instructions, install the Claude Code plugins
-# update     pull this repo (fast-forward only), then install again
+# update     pull this repo (fast-forward only), install again, then update
+#            the Claude Code plugins
 # uninstall  remove only what install created (third-party plugins stay)
 #
-# --remote adds the lazappi marketplace from GitHub instead of this checkout.
+# --remote adds the lazappi marketplace from GitHub instead of this checkout,
+# and leaves the repo's git hooks off (for machines that only use the skills).
 #
 # Environment:
 #   AI_SKILLS_HOME        target home folder (default: $HOME)
@@ -54,6 +56,10 @@ problem() {
 link() {
   local target="$1" path="$2"
   if [ -L "$path" ] && [ "$(readlink "$path")" = "$target" ]; then
+    return
+  fi
+  if [ -L "$path" ] && [ ! -e "$path" ]; then
+    problem "$path is a dangling link to $(readlink "$path") (moved clone?), remove it and run again"
     return
   fi
   if [ -e "$path" ] || [ -L "$path" ]; then
@@ -111,6 +117,7 @@ link_skills() {
 }
 
 git_hooks() {
+  [ "$REMOTE" -eq 0 ] || return 0
   if [ "$(git -C "$REPO" config core.hooksPath 2>/dev/null || true)" != ".githooks" ]; then
     echo "set git hooks path"
     act git -C "$REPO" config core.hooksPath .githooks
@@ -163,14 +170,23 @@ $id"
 
 claude_steps() {
   claude_enabled || return 0
-  MARKETS="$(claude plugin marketplace list --json | jq -r '.[].name')"
+  local markets_json wanted current
+  markets_json="$(claude plugin marketplace list --json)"
+  MARKETS="$(printf '%s\n' "$markets_json" | jq -r '.[].name')"
   PLUGINS="$(claude plugin list --json | jq -r '.[].id')"
 
   if [ "$REMOTE" -eq 1 ]; then
-    add_market lazappi "$REMOTE_SOURCE"
+    wanted="$REMOTE_SOURCE"
   else
-    add_market lazappi "$REPO"
+    wanted="$REPO"
   fi
+  # A marketplace is matched by name, so check an existing one has the wanted source
+  current="$(printf '%s\n' "$markets_json" |
+    jq -r '.[] | select(.name == "lazappi") | .path // .repo // .url // ""')"
+  if [ -n "$current" ] && [ "$current" != "$wanted" ]; then
+    problem "the lazappi marketplace points at $current, not $wanted: run 'claude plugin marketplace remove lazappi' and install again"
+  fi
+  add_market lazappi "$wanted"
   add_plugin lazappi@lazappi
 
   local id source
@@ -199,10 +215,15 @@ do_update() {
     echo "warning: no upstream branch for $REPO, skipping pull" >&2
   fi
   do_install
-  if claude_enabled; then
-    echo "update marketplace: lazappi"
-    act claude plugin marketplace update lazappi
-  fi
+  claude_enabled || return 0
+  echo "update marketplace: lazappi"
+  act claude plugin marketplace update lazappi
+  local id
+  for id in lazappi@lazappi $(grep -v '^#' "$REPO/plugins.txt" | awk 'NF {print $1}'); do
+    echo "update plugin: $id"
+    act claude plugin update "$id" || problem "could not update $id"
+  done
+  echo "restart Claude Code to load plugin updates"
 }
 
 # Remove a symlink only if it points at the given target
@@ -241,6 +262,10 @@ do_uninstall() {
   unlink_own "$GLOBAL" "$TARGET_HOME/.codex/AGENTS.md"
   unlink_own "$GLOBAL" "$TARGET_HOME/.config/opencode/AGENTS.md"
   remove_gemini_import
+  if [ "$(git -C "$REPO" config core.hooksPath 2>/dev/null || true)" = ".githooks" ]; then
+    echo "unset git hooks path"
+    act git -C "$REPO" config --unset core.hooksPath
+  fi
 
   claude_enabled || return 0
   if claude plugin list --json | jq -r '.[].id' | grep -qxF lazappi@lazappi; then

@@ -24,8 +24,8 @@ scripts/install.sh install --remote
 ```
 
 This needs [jq](https://jqlang.org) for the Claude Code steps, and skips them if `claude` isn't installed.
-`--remote` adds the marketplace from GitHub.
-On a machine where you edit the skills, run `just install` instead, so Claude Code reads the local checkout.
+`--remote` adds the marketplace from GitHub and leaves the repo's git hooks off.
+On a machine where you edit the skills, run `just install` instead, so Claude Code reads the local checkout and commits run the pre-commit checks.
 Add `--dry-run` to see what would change.
 
 | Tool | Skills | Global instructions |
@@ -36,7 +36,8 @@ Add `--dry-run` to see what would change.
 | OpenCode | `~/.agents/skills/` | `~/.config/opencode/AGENTS.md` (link) |
 
 Existing files are never overwritten: the script reports them and exits non-zero.
-`just update` pulls the repo and installs again, and `just uninstall` removes only what the install created.
+`just update` pulls the repo, installs again and updates the Claude Code plugins (restart Claude Code afterwards).
+`just uninstall` removes only what the install created, including the git hooks setting.
 
 ### Other tools
 
@@ -69,7 +70,7 @@ Skills uploaded there also sync to Claude Code sessions signed in to the same ac
 ## Repository structure
 
 - `skills/`: portable skills, standard frontmatter only
-- `claude/`: Claude Code-only pieces (wrapper skills, hooks)
+- `claude/skills/`: Claude Code-only wrapper skills
 - `instructions/global.md`: global rules shared by every tool
 - `plugins.txt`: third-party Claude Code plugins that the install script adds
 - `evals/`: `claude plugin eval` cases that check each skill triggers, run with `just eval <skill>`
