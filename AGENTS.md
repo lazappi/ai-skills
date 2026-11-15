@@ -8,7 +8,6 @@ Project-specific instructions belong in their own projects, not here.
 
 - `skills/<name>/SKILL.md`: portable skills, installed into every tool
 - `claude/skills/<name>/SKILL.md`: Claude Code-only wrapper skills
-- `claude/hooks/`: Claude Code-only hooks
 - `instructions/global.md`: global rules, linked into each tool's global instructions file
 - `evals/<skill>-<case>/`: `claude plugin eval` cases, tagged with the skill name
 - `plugins.txt`: third-party Claude Code plugins that `just install` installs
