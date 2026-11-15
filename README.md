@@ -19,6 +19,7 @@ Instructions for other tools are added once the install script exists.
 | Skill | Use it for | Adds over |
 | - | - | - |
 | `phase-review` | Reviewing a finished phase against its plan into a severity-ranked review file, then fixing from it | `code-review`, which reviews diffs rather than a phase against its plan and writes no file |
+| `r-package-dev` | Developing R packages with formatting, lint, roxygen2, testthat, NEWS.md, version and Bioconductor conventions | No existing skill covers R package conventions |
 | `repo-tidy` | Auditing a whole repo into a prioritised checklist of fixes before changing anything | `simplify`, which only edits recently changed code |
 | `session-retrospective` | Turning a session's lessons into approved edits to instructions, skills, scripts and memory | `claude-md-management:revise-claude-md`, which only edits CLAUDE.md |
 
