@@ -62,6 +62,7 @@ Skills uploaded there also sync to Claude Code sessions signed in to the same ac
 
 | Skill | Use it for | Adds over |
 | - | - | - |
+| `harvest-skills` | Mining instructions, installed skills and prompt history across projects for skill candidates, then drafting the approved ones | `session-retrospective`, which looks at one session rather than many projects |
 | `phase-review` | Reviewing a finished phase against its plan into a severity-ranked review file, then fixing from it | `code-review`, which reviews diffs rather than a phase against its plan and writes no file |
 | `r-package-dev` | Developing R packages with formatting, lint, roxygen2, testthat, NEWS.md, version and Bioconductor conventions | No existing skill covers R package conventions |
 | `repo-tidy` | Auditing a whole repo into a prioritised checklist of fixes before changing anything | `simplify`, which only edits recently changed code |
