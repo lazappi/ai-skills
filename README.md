@@ -18,6 +18,7 @@ Instructions for other tools are added once the install script exists.
 
 | Skill | Use it for | Adds over |
 | - | - | - |
+| `phase-review` | Reviewing a finished phase against its plan into a severity-ranked review file, then fixing from it | `code-review`, which reviews diffs rather than a phase against its plan and writes no file |
 | `session-retrospective` | Turning a session's lessons into approved edits to instructions, skills, scripts and memory | `claude-md-management:revise-claude-md`, which only edits CLAUDE.md |
 
 ## Repository structure
