@@ -18,6 +18,7 @@ validate:
     uv run --quiet scripts/validate_skills.py skills --claude-dir claude/skills
     if command -v claude >/dev/null; then
         claude plugin validate . >/dev/null
+        claude plugin validate .claude-plugin/marketplace.json >/dev/null
     else
         echo "warning: claude not found, skipping plugin validation" >&2
     fi
@@ -29,7 +30,14 @@ check-private:
     set -euo pipefail
     uv run --quiet scripts/check_private.py
     if command -v gitleaks >/dev/null; then
-        gitleaks dir . --no-banner --log-level warn --config .gitleaks.toml
+        # Scan only publishable files, the same set check_private.py reads
+        config="$PWD/.gitleaks.toml"
+        tmp="$(mktemp -d)"
+        trap 'rm -rf "$tmp"' EXIT
+        git ls-files --cached --others --exclude-standard -z |
+            while IFS= read -r -d '' f; do [ -e "$f" ] && printf '%s\0' "$f"; done |
+            tar --null -T - -cf - | tar -xf - -C "$tmp"
+        (cd "$tmp" && gitleaks dir . --no-banner --log-level warn --config "$config")
     else
         echo "warning: gitleaks not found, skipping secret scan" >&2
     fi
@@ -39,9 +47,16 @@ test:
     #!/usr/bin/env bash
     set -euo pipefail
     uv run --quiet --with pytest --with pyyaml pytest tests -q
+    # Run the shell tests on macOS's bash 3.2 when it is there, because the
+    # scripts must support it
+    shell=bash
+    if [ -x /bin/bash ] && /bin/bash -c '[ "${BASH_VERSINFO[0]}" -lt 4 ]'; then
+        shell=/bin/bash
+        export PATH="/bin:$PATH"
+    fi
     for t in tests/test_*.sh; do
         [ -f "$t" ] || continue
-        bash "$t"
+        "$shell" "$t"
     done
 
 # Use the repo's git hooks
