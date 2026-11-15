@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
-# Tests for scripts/install.sh. Each test uses a temp copy of the repo and a
-# temp home, both with a space in their path, so the real setup is never touched.
+# Tests for scripts/install.sh. Each test uses a temp copy of the repo (a fresh
+# git repo with no remote) and a temp home, both with a space in their path,
+# so the real setup and the real upstream are never touched.
 set -uo pipefail
 
 SRC="$(cd "$(dirname "$0")/.." && pwd)"
 FAILS=0
+# shellcheck source=tests/helpers.sh
+. "$SRC/tests/helpers.sh"
 TMP_ROOT=""
 ORIG_PATH="$PATH"
 
@@ -15,7 +18,7 @@ setup() {
   export AI_SKILLS_HOME="$TMP_ROOT/home dir"
   export AI_SKILLS_SKIP_CLAUDE=1
   mkdir -p "$AI_SKILLS_HOME"
-  cp -R "$SRC" "$AI_SKILLS_REPO"
+  copy_repo "$SRC" "$AI_SKILLS_REPO"
   mkdir -p "$AI_SKILLS_REPO/skills/zz-test-skill"
   printf -- '---\nname: zz-test-skill\ndescription: Throwaway test skill.\n---\n' \
     > "$AI_SKILLS_REPO/skills/zz-test-skill/SKILL.md"
@@ -138,7 +141,7 @@ test_claude_skips_installed() {
   { echo '[{"id":"lazappi@lazappi"}'
     grep -v '^#' "$AI_SKILLS_REPO/plugins.txt" | awk 'NF {printf ",{\"id\":\"%s\"}", $1}'
     echo ']'; } > "$CLAUDE_STUB_LIST"
-  echo '[{"name":"lazappi"},{"name":"claude-plugins-official"}]' > "$CLAUDE_STUB_MARKETS"
+  printf '[{"name":"lazappi","path":"%s"},{"name":"claude-plugins-official"}]\n' "$AI_SKILLS_REPO" > "$CLAUDE_STUB_MARKETS"
   install_sh install >/dev/null || fail "install exited non-zero"
   if grep -qE '^plugin (install|marketplace add) ' "$CLAUDE_STUB_LOG"; then
     fail "installed or added something already present: $(grep -E '^plugin (install|marketplace add) ' "$CLAUDE_STUB_LOG" | head -3)"
@@ -214,6 +217,90 @@ test_update_without_upstream() {
   out="$(install_sh update 2>&1)" || fail "update failed without an upstream: $out"
   echo "$out" | grep -qi "no upstream" || fail "no warning about the missing upstream: $out"
   assert_link "$AI_SKILLS_HOME/.agents/skills/zz-test-skill" "$AI_SKILLS_REPO/skills/zz-test-skill"
+}
+
+test_gemini_without_import() {
+  mkdir -p "$AI_SKILLS_HOME/.gemini"
+  echo "my own gemini note" > "$AI_SKILLS_HOME/.gemini/GEMINI.md"
+  local out
+  if out="$(install_sh install 2>&1)"; then
+    fail "install should exit non-zero when GEMINI.md lacks the import line"
+  fi
+  [ "$(cat "$AI_SKILLS_HOME/.gemini/GEMINI.md")" = "my own gemini note" ] || fail "GEMINI.md was changed"
+  echo "$out" | grep -q "GEMINI.md exists without the import line" || fail "no message about GEMINI.md: $out"
+}
+
+test_refuses_foreign_link() {
+  mkdir -p "$AI_SKILLS_HOME/.agents/skills"
+  ln -s "$TMP_ROOT" "$AI_SKILLS_HOME/.agents/skills/zz-test-skill"
+  if install_sh install >/dev/null 2>&1; then
+    fail "install should exit non-zero when a foreign link is in the way"
+  fi
+  assert_link "$AI_SKILLS_HOME/.agents/skills/zz-test-skill" "$TMP_ROOT"
+}
+
+test_reports_dangling_link() {
+  mkdir -p "$AI_SKILLS_HOME/.agents/skills"
+  ln -s "$TMP_ROOT/old clone/skills/zz-test-skill" "$AI_SKILLS_HOME/.agents/skills/zz-test-skill"
+  local out
+  if out="$(install_sh install 2>&1)"; then
+    fail "install should exit non-zero for a dangling link"
+  fi
+  echo "$out" | grep -q "dangling link" || fail "no message about the dangling link: $out"
+}
+
+test_no_jq() {
+  use_stub
+  local bin="$TMP_ROOT/bin" tool
+  mkdir -p "$bin"
+  for tool in bash git mkdir ln readlink grep dirname basename rm cat head awk; do
+    ln -s "$(command -v "$tool")" "$bin/$tool"
+  done
+  local out
+  if out="$(PATH="$AI_SKILLS_REPO/tests/bin:$bin" install_sh install 2>&1)"; then
+    fail "install should exit non-zero without jq"
+  fi
+  echo "$out" | grep -q "jq not found" || fail "no message about jq: $out"
+  assert_link "$AI_SKILLS_HOME/.agents/skills/zz-test-skill" "$AI_SKILLS_REPO/skills/zz-test-skill"
+}
+
+test_market_source_mismatch() {
+  use_stub
+  echo '[{"name":"lazappi","repo":"lazappi/ai-skills"}]' > "$CLAUDE_STUB_MARKETS"
+  local out
+  if out="$(install_sh install 2>&1)"; then
+    fail "install should exit non-zero when the marketplace source differs"
+  fi
+  echo "$out" | grep -q "lazappi marketplace points at lazappi/ai-skills" || fail "no message about the source: $out"
+}
+
+test_remote_skips_hooks() {
+  install_sh install --remote >/dev/null || fail "install --remote exited non-zero"
+  [ -z "$(git -C "$AI_SKILLS_REPO" config core.hooksPath || true)" ] || fail "--remote set core.hooksPath"
+}
+
+test_uninstall_dry_run() {
+  install_sh install >/dev/null
+  install_sh uninstall --dry-run >/dev/null || fail "uninstall dry run exited non-zero"
+  assert_link "$AI_SKILLS_HOME/.agents/skills/zz-test-skill" "$AI_SKILLS_REPO/skills/zz-test-skill"
+  grep -qxF "$(gemini_line)" "$AI_SKILLS_HOME/.gemini/GEMINI.md" || fail "dry run removed the Gemini import line"
+  [ "$(git -C "$AI_SKILLS_REPO" config core.hooksPath)" = ".githooks" ] || fail "dry run unset core.hooksPath"
+}
+
+test_uninstall_unsets_hooks() {
+  install_sh install >/dev/null
+  install_sh uninstall >/dev/null || fail "uninstall exited non-zero"
+  [ -z "$(git -C "$AI_SKILLS_REPO" config core.hooksPath || true)" ] || fail "uninstall left core.hooksPath set"
+}
+
+test_update_updates_plugins() {
+  use_stub
+  install_sh update >/dev/null 2>&1 || fail "update exited non-zero"
+  grep -qxF "plugin marketplace update lazappi" "$CLAUDE_STUB_LOG" || fail "marketplace not updated"
+  grep -qxF "plugin update lazappi@lazappi" "$CLAUDE_STUB_LOG" || fail "lazappi plugin not updated"
+  local updates
+  updates="$(grep -c '^plugin update ' "$CLAUDE_STUB_LOG")"
+  [ "$updates" -eq $(($(third_party) + 1)) ] || fail "expected $(($(third_party) + 1)) plugin updates, got $updates"
 }
 
 TESTS="$(declare -F | awk '{print $3}' | grep '^test_')"
