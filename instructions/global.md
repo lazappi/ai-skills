@@ -4,6 +4,13 @@
 
 - Prefer terse, concise responses.
 - Only provide the information required to answer the prompt, avoid filler or extra words.
+- Write responses to the user and internal memories and notes in ASD-STE100 Simplified Technical English.
+  This does not apply to docs, Markdown, commit, PR and issue text, which follow the `writing-style` skill.
+
+## Project conventions
+
+- When a repository's documentation and its existing code disagree, follow the conventions in the existing code.
+  In your final reply, list each inconsistency you found between the documentation and the code.
 
 ## Problem solving
 
