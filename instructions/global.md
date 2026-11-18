@@ -7,11 +7,13 @@
 - Write responses to the user and internal memories and notes in ASD-STE100 Simplified Technical English.
   Use the simple future tense for actions you plan to do and the simple past tense for actions you have done.
   This does not apply to docs, Markdown, commit, PR and issue text, which follow the `writing-style` skill.
+- When the user asks for suggestions, a review or a plan, give it and leave the files unchanged until the user approves the changes.
 
 ## Project conventions
 
 - When a repository's documentation and its existing code disagree, follow the conventions in the existing code.
   In your final reply, list each inconsistency you found between the documentation and the code.
+- When a project has a task runner (`just`, `mise`, `make` or similar), run its recipes instead of the commands they wrap.
 
 ## Problem solving
 
