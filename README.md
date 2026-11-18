@@ -62,10 +62,13 @@ Skills uploaded there also sync to Claude Code sessions signed in to the same ac
 
 | Skill | Use it for | Adds over |
 | - | - | - |
+| `address-pr-comments` | Working through the open review comments and failing checks on a GitHub PR, one at a time, with drafted replies | `code-review` and `pr-review-toolkit`, which write reviews rather than act on existing ones |
+| `draft-github-issue` | Drafting an issue for this repo or an upstream one from its template, with a duplicate search and a minimal reproduction | `writing-style`, which sets the tone but does not find templates or build a reproduction |
 | `harvest-skills` | Mining instructions, installed skills and prompt history across projects for skill candidates, then drafting the approved ones | `session-retrospective`, which looks at one session rather than many projects |
 | `phase-review` | Reviewing a finished phase against its plan into a severity-ranked review file, then fixing from it | `code-review`, which reviews diffs rather than a phase against its plan and writes no file |
 | `r-package-dev` | Developing R packages with formatting, lint, roxygen2, testthat, NEWS.md, version and Bioconductor conventions | No existing skill covers R package conventions |
 | `repo-tidy` | Auditing a whole repo into a prioritised checklist of fixes before changing anything | `simplify`, which only edits recently changed code |
+| `review-my-edits` | Checking edits the user made by hand, following them through and resolving inline `COMMENT:` markers | `superpowers:receiving-code-review`, which covers how to respond to a reviewer rather than hand edits and markers |
 | `session-retrospective` | Turning a session's lessons into approved edits to instructions, skills, scripts and memory | `claude-md-management:revise-claude-md`, which only edits CLAUDE.md |
 | `writing-style` | Writing and proofreading prose, Markdown, commits, PRs and issues in a plain style with Australian spelling by default | No existing skill covers a personal writing style |
 
